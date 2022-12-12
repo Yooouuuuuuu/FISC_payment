@@ -53,7 +53,7 @@ public class validator {
                 //System.out.println("one poll finish with " + records.count() + " records");
 
             } catch ( Exception e ) {
-                //
+                //try to catch Exception
 
 
                 producer.abortTransaction();
