@@ -11,14 +11,12 @@ import java.time.Duration;
 import java.util.*;
 import java.util.concurrent.ExecutionException;
 
-public class validator {
+public class validator_pollLocal {
     static HashMap<String, Long> bankBalance = new HashMap<String, Long>();
     static HashMap<String, Long> creditOffset = new HashMap<String, Long>();
-
     static KafkaConsumer<String, Transaction> consumerFromBig;
     static KafkaConsumer<String, Transaction> consumerFromLocalBalance;
     static KafkaConsumer<String, Transaction> consumerFromAggregatedCredit;
-
     static Producer<String, Transaction> producer;
 
     public static void main(String[] args) throws Exception {
@@ -26,7 +24,7 @@ public class validator {
         System.setProperty(org.slf4j.impl.SimpleLogger.DEFAULT_LOG_LEVEL_KEY, "off"); //"off", "trace", "debug", "info", "warn", "error".
         InitConsumer(Integer.parseInt(args[0]));
         InitProducer();
-        Logger logger = LoggerFactory.getLogger(validator.class);
+        Logger logger = LoggerFactory.getLogger(validator_pollLocal.class);
         producer.initTransactions();
 
         //poll from bigTX
@@ -138,25 +136,24 @@ public class validator {
     }
 
     private static void PollFromTmp(Transaction tx) {
-        if (!bankBalance.containsKey(tx.getInBank()) || Objects.equals(tx.getInBank(), "000")) {  // If tx.getInBank() =="000", Tx aborted, rollback to previous local balance.
-            TopicPartition topicPartition = new TopicPartition("localBalance", tx.getInBankPartition());
-            consumerFromLocalBalance.assign(List.of(topicPartition));
-            consumerFromLocalBalance.seekToEnd(Collections.singleton(topicPartition));
-            long latestOffset = consumerFromLocalBalance.position(topicPartition);
-            boolean findingLast = true;
-            while (findingLast) {
-                consumerFromLocalBalance.seek(topicPartition, latestOffset);
-                latestOffset -= 1;
-                //System.out.println(consumerFromLocalBalance.position(topicPartition));
-                ConsumerRecords<String, Transaction> balanceRecords = consumerFromLocalBalance.poll(Duration.ofMillis(100));
-                for (ConsumerRecord<String, Transaction> balanceRecord : balanceRecords) {
-                    bankBalance.compute(tx.getInBank(), (key, value) -> balanceRecord.value().getAmount());
-                    System.out.println(tx.getInBank() + " now have " + bankBalance.get(tx.getInBank()));
-                    findingLast = false;
-                }
+        TopicPartition topicPartition = new TopicPartition("localBalance", tx.getInBankPartition());
+        consumerFromLocalBalance.assign(List.of(topicPartition));
+        consumerFromLocalBalance.seekToEnd(Collections.singleton(topicPartition));
+        long latestOffset = consumerFromLocalBalance.position(topicPartition);
+        boolean findingLast = true;
+        while (findingLast) {
+            consumerFromLocalBalance.seek(topicPartition, latestOffset);
+            latestOffset -= 1;
+            //System.out.println(consumerFromLocalBalance.position(topicPartition));
+            ConsumerRecords<String, Transaction> balanceRecords = consumerFromLocalBalance.poll(Duration.ofMillis(100));
+            for (ConsumerRecord<String, Transaction> balanceRecord : balanceRecords) {
+                bankBalance.compute(tx.getInBank(), (key, value) -> balanceRecord.value().getAmount());
+                //System.out.println(tx.getInBank() + " now have " + bankBalance.get(tx.getInBank()));
+                findingLast = false;
             }
         }
     }
+
 
     private static void PollFromAggregatedCredit(Transaction tx) {
         TopicPartition topicPartition = new TopicPartition("AggregatedCredit", tx.getInBankPartition());
@@ -183,31 +180,12 @@ public class validator {
         if (bankBalance.get(tx.getInBank()) >= tx.getAmount()) {
             bankBalance.compute(tx.getInBank(), (key, value) -> value - tx.getAmount());
             producer.send(new ProducerRecord<String, Transaction>("bigTX", tx.getOutBankPartition(), tx.getOutBank(), CompensationRecord(tx)));
-            //producer.send(new ProducerRecord<String, Transaction>("credit", tx.getOutBankPartition(), tx.getOutBank(), CompensationRecord(tx)));
             producer.send(new ProducerRecord<String, Transaction>("successfulTX", tx.getInBankPartition(), tx.getInBank(), tx));
             producer.send(new ProducerRecord<String, Transaction>("successfulTX", tx.getOutBankPartition(), tx.getOutBank(), CompensationRecord(tx)));
             producer.send(new ProducerRecord<String, Transaction>("localBalance", tx.getInBankPartition(), tx.getInBank(), BalanceRecord(tx)));
         } else {
-            // If balance is not enough, poll from the aggregatedCredit topic.
-            //PollFromAggregatedCredit(tx);
-            //producer.send(new ProducerRecord<String, Transaction>("validateOffset", tx.getInBankPartition(), tx.getInBank(), ValidateOffsetRecord(tx)));
-            //last poll offset of topic aggregatedCredit
             producer.send(new ProducerRecord<String, Transaction>("rejectedTX", tx.getInBank(), tx));
             System.out.println("Big transaction cancelled.");
-
-            /*
-            if (bankBalance.get(tx.getInBank()) >= tx.getAmount()) {
-                //producer.send(new ProducerRecord<String, Transaction>("credit", tx.getOutBankPartition(), tx.getOutBank(), CompensationRecord(tx)));
-                producer.send(new ProducerRecord<String, Transaction>("successfulTX", tx.getInBankPartition(), tx.getInBank(), tx));
-                producer.send(new ProducerRecord<String, Transaction>("successfulTX", tx.getOutBankPartition(), tx.getOutBank(), CompensationRecord(tx)));
-                producer.send(new ProducerRecord<String, Transaction>("localBalance", tx.getInBankPartition(), tx.getInBank(), BalanceRecord(tx)));
-            } else {
-                // If balance is still not enough, reject the TX.
-                producer.send(new ProducerRecord<String, Transaction>("rejectedTX", tx.getInBank(), tx));
-                System.out.println("Big transaction cancelled.");
-             }
-             */
-
         }
     }
 

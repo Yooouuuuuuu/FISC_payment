@@ -19,16 +19,13 @@ public class sourceProducer_random {
         HashMap<String, Long> bankBalance = new HashMap<String, Long>();
         ArrayList<String> bank = new ArrayList<String>();
 
+        //create bank 100, 101, 102
         int count = 0;
         while(count < numOfPartitions){
             bank.add("10" + count);
             bankBalance.put("10" + count, 100000000L);
             count += 1;
         }
-
-        //bankBalance.put("700", 100000000L);
-        //bankBalance.put("013", 100000000L);
-
 
         //create producer properties
         String bootstrapServers = "127.0.0.1:9092";
@@ -39,16 +36,6 @@ public class sourceProducer_random {
 
         //create the producer
         KafkaProducer<String, Transaction> producer = new KafkaProducer<>(properties);
-
-        //choose partition option
-        /*
-        String[] bank = {"822", "700", "013"};
-        if (numOfPartitions == 10) {
-            bank = new String[]{"822", "700", "013", "812", "006", "007", "004", "008", "012", "943"};
-        } else if (numOfPartitions == 20) {
-            bank = new String[]{"822", "700", "013", "812", "006", "007", "004", "008", "012", "943", "000", "111", "222", "333", "444", "555", "666", "777", "888", "999"};
-        }
-        */
 
         long amount;
         for (long i = 0; i < numOfData; i++) { //3.5% of the transactions are big transactions
@@ -75,6 +62,7 @@ public class sourceProducer_random {
             } else if (amount == 1){
                 producer.send(new ProducerRecord<String, Transaction>("smallTX", output.getInBankPartition(), output.getInBank(), output));
             }
+            //System.out.println(output.getInBank()+", "+output.getOutBank()+", "+output.getInBankPartition()+", "+output.getOutBankPartition()+", "+output.getCategory()+", "+output.getAmount()+", "+output.getSerialNumber()+", ");
 
             bankBalance.compute(output.getInBank(), (key, value) -> value - output.getAmount());
             bankBalance.compute(output.getOutBank(), (key, value) -> value + output.getAmount());

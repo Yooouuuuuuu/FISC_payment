@@ -11,7 +11,7 @@ import java.time.Duration;
 import java.util.*;
 import java.util.concurrent.ExecutionException;
 
-public class validator {
+public class validator_withoutBatch {
     static HashMap<String, Long> bankBalance = new HashMap<String, Long>();
     static HashMap<String, Long> creditOffset = new HashMap<String, Long>();
 
@@ -24,17 +24,17 @@ public class validator {
     public static void main(String[] args) throws Exception {
 
         System.setProperty(org.slf4j.impl.SimpleLogger.DEFAULT_LOG_LEVEL_KEY, "off"); //"off", "trace", "debug", "info", "warn", "error".
-        InitConsumer(Integer.parseInt(args[0]));
+        InitConsumer();
         InitProducer();
-        Logger logger = LoggerFactory.getLogger(validator.class);
+        Logger logger = LoggerFactory.getLogger(validator_withoutBatch.class);
         producer.initTransactions();
 
         //poll from bigTX
         while (true) {
             ConsumerRecords<String, Transaction> records = consumerFromBig.poll(Duration.ofMillis(100));
-            producer.beginTransaction();        //start atomically transaction
             try {
                 for (ConsumerRecord<String, Transaction> record : records) {
+                    producer.beginTransaction();        //start atomically transaction
                     logger.info("InBank: " + record.value().getInBank() + " ,OutBank: " + record.value().getOutBank() + " ,Value: " + record.value().getAmount() + " ,Offset:" + record.offset());
                     if (record.value().getCategory() == 0) {
                         ProcessBig(record.value());
@@ -45,10 +45,9 @@ public class validator {
                     } else if (record.value().getCategory() == 3) {
                         InitBank(record.value());
                     }
+                    consumerFromBig.commitSync();
+                    producer.commitTransaction();
                 }
-                consumerFromBig.commitSync();
-                producer.commitTransaction();
-                //System.out.println("one poll finish with " + records.count() + " records");
             } catch ( Exception e ) {
                 //try to catch Exception
                 producer.abortTransaction();
@@ -60,7 +59,7 @@ public class validator {
         }
     }
 
-    private static void InitConsumer(int args) {
+    private static void InitConsumer() {
         //consumer consume from big
         Properties propsConsumerTx = new Properties();
         propsConsumerTx.put("bootstrap.servers", "localhost:9092");
@@ -70,7 +69,7 @@ public class validator {
         propsConsumerTx.put("isolation.level", "read_committed");
         propsConsumerTx.put("enable.auto.commit", "false");
         propsConsumerTx.put(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest");
-        propsConsumerTx.put("max.poll.records", args);
+        propsConsumerTx.put("max.poll.records", 500);
 
         String input_topic = "bigTX";
         consumerFromBig =

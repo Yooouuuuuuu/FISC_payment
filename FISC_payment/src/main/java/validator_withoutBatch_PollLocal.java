@@ -11,7 +11,7 @@ import java.time.Duration;
 import java.util.*;
 import java.util.concurrent.ExecutionException;
 
-public class validator {
+public class validator_withoutBatch_PollLocal {
     static HashMap<String, Long> bankBalance = new HashMap<String, Long>();
     static HashMap<String, Long> creditOffset = new HashMap<String, Long>();
 
@@ -24,17 +24,17 @@ public class validator {
     public static void main(String[] args) throws Exception {
 
         System.setProperty(org.slf4j.impl.SimpleLogger.DEFAULT_LOG_LEVEL_KEY, "off"); //"off", "trace", "debug", "info", "warn", "error".
-        InitConsumer(Integer.parseInt(args[0]));
+        InitConsumer();
         InitProducer();
-        Logger logger = LoggerFactory.getLogger(validator.class);
+        Logger logger = LoggerFactory.getLogger(validator_withoutBatch_PollLocal.class);
         producer.initTransactions();
 
         //poll from bigTX
         while (true) {
             ConsumerRecords<String, Transaction> records = consumerFromBig.poll(Duration.ofMillis(100));
-            producer.beginTransaction();        //start atomically transaction
             try {
                 for (ConsumerRecord<String, Transaction> record : records) {
+                    producer.beginTransaction();        //start atomically transaction
                     logger.info("InBank: " + record.value().getInBank() + " ,OutBank: " + record.value().getOutBank() + " ,Value: " + record.value().getAmount() + " ,Offset:" + record.offset());
                     if (record.value().getCategory() == 0) {
                         ProcessBig(record.value());
@@ -45,10 +45,9 @@ public class validator {
                     } else if (record.value().getCategory() == 3) {
                         InitBank(record.value());
                     }
+                    consumerFromBig.commitSync();
+                    producer.commitTransaction();
                 }
-                consumerFromBig.commitSync();
-                producer.commitTransaction();
-                //System.out.println("one poll finish with " + records.count() + " records");
             } catch ( Exception e ) {
                 //try to catch Exception
                 producer.abortTransaction();
@@ -60,7 +59,7 @@ public class validator {
         }
     }
 
-    private static void InitConsumer(int args) {
+    private static void InitConsumer() {
         //consumer consume from big
         Properties propsConsumerTx = new Properties();
         propsConsumerTx.put("bootstrap.servers", "localhost:9092");
@@ -70,7 +69,7 @@ public class validator {
         propsConsumerTx.put("isolation.level", "read_committed");
         propsConsumerTx.put("enable.auto.commit", "false");
         propsConsumerTx.put(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest");
-        propsConsumerTx.put("max.poll.records", args);
+        propsConsumerTx.put("max.poll.records", 500);
 
         String input_topic = "bigTX";
         consumerFromBig =
@@ -138,44 +137,22 @@ public class validator {
     }
 
     private static void PollFromTmp(Transaction tx) {
-        if (!bankBalance.containsKey(tx.getInBank()) || Objects.equals(tx.getInBank(), "000")) {  // If tx.getInBank() =="000", Tx aborted, rollback to previous local balance.
-            TopicPartition topicPartition = new TopicPartition("localBalance", tx.getInBankPartition());
-            consumerFromLocalBalance.assign(List.of(topicPartition));
-            consumerFromLocalBalance.seekToEnd(Collections.singleton(topicPartition));
-            long latestOffset = consumerFromLocalBalance.position(topicPartition);
-            boolean findingLast = true;
-            while (findingLast) {
-                consumerFromLocalBalance.seek(topicPartition, latestOffset);
-                latestOffset -= 1;
-                //System.out.println(consumerFromLocalBalance.position(topicPartition));
-                ConsumerRecords<String, Transaction> balanceRecords = consumerFromLocalBalance.poll(Duration.ofMillis(100));
-                for (ConsumerRecord<String, Transaction> balanceRecord : balanceRecords) {
-                    bankBalance.compute(tx.getInBank(), (key, value) -> balanceRecord.value().getAmount());
-                    System.out.println(tx.getInBank() + " now have " + bankBalance.get(tx.getInBank()));
-                    findingLast = false;
-                }
-            }
-        }
-    }
-
-    private static void PollFromAggregatedCredit(Transaction tx) {
-        TopicPartition topicPartition = new TopicPartition("AggregatedCredit", tx.getInBankPartition());
-        consumerFromAggregatedCredit.assign(List.of(topicPartition));
-        consumerFromAggregatedCredit.seekToEnd(Collections.singleton(topicPartition));
-        long latestOffset = consumerFromAggregatedCredit.position(topicPartition);
+        TopicPartition topicPartition = new TopicPartition("localBalance", tx.getInBankPartition());
+        consumerFromLocalBalance.assign(List.of(topicPartition));
+        consumerFromLocalBalance.seekToEnd(Collections.singleton(topicPartition));
+        long latestOffset = consumerFromLocalBalance.position(topicPartition);
         boolean findingLast = true;
         while (findingLast) {
-            consumerFromAggregatedCredit.seek(topicPartition, latestOffset);
+            consumerFromLocalBalance.seek(topicPartition, latestOffset);
             latestOffset -= 1;
-            ConsumerRecords<String, Transaction> balanceRecords = consumerFromAggregatedCredit.poll(Duration.ofMillis(100));
+            //System.out.println(consumerFromLocalBalance.position(topicPartition));
+            ConsumerRecords<String, Transaction> balanceRecords = consumerFromLocalBalance.poll(Duration.ofMillis(100));
             for (ConsumerRecord<String, Transaction> balanceRecord : balanceRecords) {
-                bankBalance.compute(tx.getInBank(), (key, value) -> value + balanceRecord.value().getAmount());
-                creditOffset.put(tx.getInBank(), balanceRecord.offset());
-                //put??
+                bankBalance.compute(tx.getInBank(), (key, value) -> balanceRecord.value().getAmount());
+                //System.out.println(tx.getInBank() + " now have " + bankBalance.get(tx.getInBank()));
                 findingLast = false;
-                }
             }
-        System.out.println("Credits added.");
+        }
     }
 
     private static void ProcessBig(Transaction tx) throws ExecutionException, IOException, InterruptedException {
