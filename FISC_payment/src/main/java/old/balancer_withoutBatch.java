@@ -1,3 +1,5 @@
+package old;
+
 import org.apache.kafka.clients.consumer.*;
 import org.apache.kafka.clients.producer.KafkaProducer;
 import org.apache.kafka.clients.producer.Producer;
@@ -6,15 +8,11 @@ import org.apache.kafka.common.TopicPartition;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.nio.charset.Charset;
-import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.*;
 import java.util.concurrent.ExecutionException;
 
-import static java.lang.Boolean.parseBoolean;
-
-public class balancer {
+public class balancer_withoutBatch {
     static HashMap<String, Long> bankBalance = new HashMap<String, Long>();
     static KafkaConsumer<String, Transaction> consumerFromSuccessful;
     static KafkaConsumer<String, Transaction> consumerFromBalance;
@@ -22,50 +20,39 @@ public class balancer {
 
     public static void main(String[] args) throws Exception {
 
-        /*
-        args[0]: # of partitions
-        args[1]: # of transactions
-        args[2]: "max.poll.records"
-        args[3]: batch processing
-        args[4]: poll from localBalance while repartition
-        args[5]: credit topic exist
-        args[6]: direct write to successful
-         */
-
         System.setProperty(org.slf4j.impl.SimpleLogger.DEFAULT_LOG_LEVEL_KEY, "off"); //"off", "trace", "debug", "info", "warn", "error".
-        InitConsumer(Integer.parseInt(args[2]));
+        InitConsumer();
         InitProducer();
-        Logger logger = LoggerFactory.getLogger(balancer.class);
+        Logger logger = LoggerFactory.getLogger(balancer_withoutBatch.class);
         producer.initTransactions();
 
         //consume from successful
         while (true) {
             ConsumerRecords<String, Transaction> records = consumerFromSuccessful.poll(Duration.ofMillis(100));
-            producer.beginTransaction();        //start atomically transaction
             try {
                 for (ConsumerRecord<String, Transaction> record : records) {
+                    producer.beginTransaction();        //start atomically transaction
                     logger.info("InBank: " + record.value().getInBank() + " ,OutBank: " + record.value().getOutBank() + " ,Value: " + record.value().getAmount() + " ,Offset:" + record.offset());
                     if (record.value().getCategory() != 3) {
                         PollFromBalance(record.value());
                         Process(record.value());
                     }else if (record.value().getCategory() == 3) {
                         Process(record.value());
-                        System.out.println("Bank " + record.value().getInBank() + " has been initialized to balance " + bankBalance.get(record.value().getInBank()) + ". (balancer)");
+                        System.out.println("Bank " + record.value().getInBank() + " has been initialized to balance " + bankBalance.get(record.value().getInBank()) + ".");
                     }
+                    consumerFromSuccessful.commitSync();
+                    producer.commitTransaction();
                 }
-                consumerFromSuccessful.commitSync();
-                producer.commitTransaction();
             } catch ( Exception e ) {
                 producer.abortTransaction();//end atomically transaction
                 bankBalance = new HashMap<String, Long>();
-                System.out.println("Tx aborted, bankBalance been reset. (balancer)");
-                //return;
+                System.out.println("Tx aborted, bankBalance been reset.");
             }
         }
     }
 
 
-    private static void InitConsumer(int args) {
+    private static void InitConsumer() {
         //consumer consume from successful
         Properties propsConsumerTx = new Properties();
         propsConsumerTx.put("bootstrap.servers", "localhost:9092");
@@ -75,7 +62,7 @@ public class balancer {
         propsConsumerTx.put("isolation.level", "read_committed");
         propsConsumerTx.put("enable.auto.commit", "false");
         propsConsumerTx.put(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest");
-        propsConsumerTx.put("max.poll.records", args);
+        propsConsumerTx.put("max.poll.records", 500);
 
         String input_topic = "successfulTX";
         consumerFromSuccessful =
@@ -88,7 +75,7 @@ public class balancer {
                     }
                     @Override
                     public void onPartitionsAssigned(Collection<TopicPartition> partitions) {
-                        System.out.println("bankBalance before rebalance: " + bankBalance + " (balancer)");
+                        System.out.println("bankBalance before rebalance: " + bankBalance);
                         bankBalance = new HashMap<String, Long>();
                     }});
 
@@ -107,15 +94,14 @@ public class balancer {
 
     private static void InitProducer() {
         //producer produce to balance
-        Properties propsTXWrite = new Properties();
-        propsTXWrite.put("bootstrap.servers", "localhost:9092");
-        propsTXWrite.put("key.serializer", "org.apache.kafka.common.serialization.StringSerializer");
-        propsTXWrite.put("value.serializer", "TxSerializer");
-        propsTXWrite.put("transactional.id", randomString()); //Should be different between validators to avoid being fenced due to same transactional.id.
-        propsTXWrite.put("enable.idempotence", "true");
-        propsTXWrite.put("max.block.ms", "1000");
-        propsTXWrite.put("transaction.timeout.ms", "600000");
-        producer = new KafkaProducer<>(propsTXWrite);
+        Properties propsTxWrite = new Properties();
+        propsTxWrite.put("bootstrap.servers", "localhost:9092");
+        propsTxWrite.put("key.serializer", "org.apache.kafka.common.serialization.StringSerializer");
+        propsTxWrite.put("value.serializer", "TxSerializer");
+        propsTxWrite.put("transactional.id", UUID.randomUUID().toString()); //Should be different between validators to avoid being fenced due to same transactional.id.
+        propsTxWrite.put("enable.idempotence", "true");
+        propsTxWrite.put("max.block.ms", "1000");
+        producer = new KafkaProducer<>(propsTxWrite);
     }
 
     private static void PollFromBalance(Transaction tx) {
@@ -152,11 +138,5 @@ public class balancer {
             bankBalance.compute(tx.getInBank(), (key, value) -> value + tx.getAmount());
             producer.send(new ProducerRecord<String, Transaction>("balance", tx.getInBankPartition(), tx.getInBank(), Record(tx)));
         }
-    }
-
-    public static String randomString() {
-        byte[] array = new byte[32]; // length is bounded by 32
-        new Random().nextBytes(array);
-        return new String(array, StandardCharsets.UTF_8);
     }
 }
