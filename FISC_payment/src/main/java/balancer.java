@@ -30,7 +30,7 @@ public class balancer {
         args[4]: poll from localBalance while repartition
         args[5]: credit topic exist
         args[6]: direct write to successful
-         */
+        */
 
         System.setProperty(org.slf4j.impl.SimpleLogger.DEFAULT_LOG_LEVEL_KEY, "off"); //"off", "trace", "debug", "info", "warn", "error".
         InitConsumer(Integer.parseInt(args[2]));

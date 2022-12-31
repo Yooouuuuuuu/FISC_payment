@@ -5,15 +5,16 @@ import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.kafka.common.TopicPartition;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
 import java.io.IOException;
-import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.*;
 import java.util.concurrent.ExecutionException;
+
 import static java.lang.Boolean.parseBoolean;
 
-public class validator {
+public class validateToBalance {
     static HashMap<String, Long> bankBalance = new HashMap<String, Long>();
     static HashMap<String, Long> creditOffset = new HashMap<String, Long>();
     static KafkaConsumer<String, Transaction> consumerFromBig;
@@ -40,7 +41,7 @@ public class validator {
         System.setProperty(org.slf4j.impl.SimpleLogger.DEFAULT_LOG_LEVEL_KEY, "off"); //"off", "trace", "debug", "info", "warn", "error".
         InitConsumer(Integer.parseInt(args[2]));
         InitProducer();
-        Logger logger = LoggerFactory.getLogger(validator.class);
+        Logger logger = LoggerFactory.getLogger(validateToBalance.class);
         producer.initTransactions();
 
         //poll from bigTX
@@ -55,8 +56,6 @@ public class validator {
                             ProcessBig(record.value(), notPollLocal, creditTopicExist);
                         } else if (record.value().getCategory() == 1) {
                             ProcessAggregated(record.value(), notPollLocal, creditTopicExist);
-                        } else if (record.value().getCategory() == 2) {
-                            ProcessCompensate(record.value(), notPollLocal);
                         } else if (record.value().getCategory() == 3) {
                             InitBank(record.value());
                         }
@@ -84,8 +83,6 @@ public class validator {
                             ProcessBig(record.value(), notPollLocal, creditTopicExist);
                         } else if (record.value().getCategory() == 1) {
                             ProcessAggregated(record.value(), notPollLocal, creditTopicExist);
-                        } else if (record.value().getCategory() == 2) {
-                            ProcessCompensate(record.value(), notPollLocal);
                         } else if (record.value().getCategory() == 3) {
                             InitBank(record.value());
                         }
@@ -237,83 +234,27 @@ public class validator {
     }
 
     private static void ProcessBig(Transaction tx, boolean notPollLocal, boolean creditTopicExist) throws ExecutionException, IOException, InterruptedException {
-        if (creditTopicExist) {
-            if (bankBalance.get(tx.getInBank()) >= tx.getAmount()) {
-                bankBalance.compute(tx.getInBank(), (key, value) -> value - tx.getAmount());
-                producer.send(new ProducerRecord<String, Transaction>("credit", tx.getOutBankPartition(), tx.getOutBank(), CompensationRecord(tx)));
-                producer.send(new ProducerRecord<String, Transaction>("successfulTX", tx.getInBankPartition(), tx.getInBank(), tx));
-                producer.send(new ProducerRecord<String, Transaction>("successfulTX", tx.getOutBankPartition(), tx.getOutBank(), CompensationRecord(tx)));
-                producer.send(new ProducerRecord<String, Transaction>("localBalance", tx.getInBankPartition(), tx.getInBank(), BalanceRecord(tx)));
-            }else {
-                PollFromCredit(tx);
-                if (bankBalance.get(tx.getInBank()) >= tx.getAmount()) {
-                    bankBalance.compute(tx.getInBank(), (key, value) -> value - tx.getAmount());
-                    producer.send(new ProducerRecord<String, Transaction>("credit", tx.getOutBankPartition(), tx.getOutBank(), CompensationRecord(tx)));
-                    producer.send(new ProducerRecord<String, Transaction>("successfulTX", tx.getInBankPartition(), tx.getInBank(), tx));
-                    producer.send(new ProducerRecord<String, Transaction>("successfulTX", tx.getOutBankPartition(), tx.getOutBank(), CompensationRecord(tx)));
-                    producer.send(new ProducerRecord<String, Transaction>("localBalance", tx.getInBankPartition(), tx.getInBank(), BalanceRecord(tx)));
-                } else {
-                    // If balance is still not enough, reject the TX.
-                    producer.send(new ProducerRecord<String, Transaction>("rejectedTX", tx.getInBank(), tx));
-                    System.out.println("Big transaction cancelled.");
-                }
-            }
+        if (bankBalance.get(tx.getInBank()) >= tx.getAmount()) {
+            bankBalance.compute(tx.getInBank(), (key, value) -> value - tx.getAmount());
+            bankBalance.compute(tx.getOutBank(), (key, value) -> value + tx.getAmount());
+            producer.send(new ProducerRecord<String, Transaction>("balance", tx.getInBankPartition(), tx.getInBank(), tx));
+            producer.send(new ProducerRecord<String, Transaction>("balance", tx.getOutBankPartition(), tx.getOutBank(), CompensationRecord(tx)));
         } else {
-            PollFromTmp(tx, notPollLocal);
-            if (bankBalance.get(tx.getInBank()) >= tx.getAmount()) {
-                bankBalance.compute(tx.getInBank(), (key, value) -> value - tx.getAmount());
-                producer.send(new ProducerRecord<String, Transaction>("bigTX", tx.getOutBankPartition(), tx.getOutBank(), CompensationRecord(tx)));
-                producer.send(new ProducerRecord<String, Transaction>("successfulTX", tx.getInBankPartition(), tx.getInBank(), tx));
-                producer.send(new ProducerRecord<String, Transaction>("successfulTX", tx.getOutBankPartition(), tx.getOutBank(), CompensationRecord(tx)));
-                producer.send(new ProducerRecord<String, Transaction>("localBalance", tx.getInBankPartition(), tx.getInBank(), BalanceRecord(tx)));
-            } else {
-                producer.send(new ProducerRecord<String, Transaction>("rejectedTX", tx.getInBank(), tx));
-                System.out.println("Big transaction cancelled.");
-            }
+            producer.send(new ProducerRecord<String, Transaction>("rejectedTX", tx.getInBank(), tx));
+            System.out.println("Big transaction cancelled.");
         }
     }
 
     private static void ProcessAggregated(Transaction tx, boolean notPollLocal, boolean creditTopicExist) throws ExecutionException, InterruptedException {
-        if (creditTopicExist) {
-            if (bankBalance.get(tx.getInBank()) >= tx.getAmount()) {
-                bankBalance.compute(tx.getInBank(), (key, value) -> value - tx.getAmount());
-                producer.send(new ProducerRecord<String, Transaction>("credit", tx.getOutBankPartition(), tx.getOutBank(), CompensationRecord(tx)));
-                producer.send(new ProducerRecord<String, Transaction>("successfulTX", tx.getInBankPartition(), tx.getInBank(), tx));
-                producer.send(new ProducerRecord<String, Transaction>("successfulTX", tx.getOutBankPartition(), tx.getOutBank(), CompensationRecord(tx)));
-                producer.send(new ProducerRecord<String, Transaction>("localBalance", tx.getInBankPartition(), tx.getInBank(), BalanceRecord(tx)));
-            } else {
-                PollFromCredit(tx);
-                if (bankBalance.get(tx.getInBank()) >= tx.getAmount()) {
-                    bankBalance.compute(tx.getInBank(), (key, value) -> value - tx.getAmount());
-                    producer.send(new ProducerRecord<String, Transaction>("credit", tx.getOutBankPartition(), tx.getOutBank(), CompensationRecord(tx)));
-                    producer.send(new ProducerRecord<String, Transaction>("successfulTX", tx.getInBankPartition(), tx.getInBank(), tx));
-                    producer.send(new ProducerRecord<String, Transaction>("successfulTX", tx.getOutBankPartition(), tx.getOutBank(), CompensationRecord(tx)));
-                    producer.send(new ProducerRecord<String, Transaction>("localBalance", tx.getInBankPartition(), tx.getInBank(), BalanceRecord(tx)));
-                } else {
-                    // If balance is still not enough, reassign the TX.
-                    producer.send(new ProducerRecord<String, Transaction>("bigTX", tx.getInBankPartition(), tx.getInBank(), tx));
-                    System.out.println("Aggregated transaction suspended. Sent back to big topic.");
-                }
-            }
+        if (bankBalance.get(tx.getInBank()) >= tx.getAmount()) {
+            bankBalance.compute(tx.getInBank(), (key, value) -> value - tx.getAmount());
+            bankBalance.compute(tx.getOutBank(), (key, value) -> value + tx.getAmount());
+            producer.send(new ProducerRecord<String, Transaction>("balance", tx.getInBankPartition(), tx.getInBank(), tx));
+            producer.send(new ProducerRecord<String, Transaction>("balance", tx.getOutBankPartition(), tx.getOutBank(), CompensationRecord(tx)));
         } else {
-            PollFromTmp(tx, notPollLocal);
-            if (bankBalance.get(tx.getInBank()) >= tx.getAmount()) {
-                bankBalance.compute(tx.getInBank(), (key, value) -> value - tx.getAmount());
-                producer.send(new ProducerRecord<String, Transaction>("bigTX", tx.getOutBankPartition(), tx.getOutBank(), CompensationRecord(tx)));
-                producer.send(new ProducerRecord<String, Transaction>("successfulTX", tx.getInBankPartition(), tx.getInBank(), tx));
-                producer.send(new ProducerRecord<String, Transaction>("successfulTX", tx.getOutBankPartition(), tx.getOutBank(), CompensationRecord(tx)));
-                producer.send(new ProducerRecord<String, Transaction>("localBalance", tx.getInBankPartition(), tx.getInBank(), BalanceRecord(tx)));
-            } else {
-                producer.send(new ProducerRecord<String, Transaction>("bigTX", tx.getInBankPartition(), tx.getInBank(), tx));
-                System.out.println("Aggregated transaction suspended. Sent back to big topic.");
-            }
+            producer.send(new ProducerRecord<String, Transaction>("bigTX", tx.getInBankPartition(), tx.getInBank(), tx));
+            System.out.println("Aggregated transaction suspended. Sent back to big topic.");
         }
-    }
-
-    private static void ProcessCompensate(Transaction tx, boolean notPollLocal) throws ExecutionException, InterruptedException {
-        PollFromTmp(tx, notPollLocal);
-        bankBalance.compute(tx.getInBank(), (key, value) -> value + tx.getAmount());
-        producer.send(new ProducerRecord<String, Transaction>("localBalance", tx.getInBankPartition(), tx.getInBank(), BalanceRecord(tx)));
     }
 
     private static void InitBank(Transaction tx) throws ExecutionException, InterruptedException {
@@ -330,3 +271,5 @@ public class validator {
         return new String(array, StandardCharsets.UTF_8);
     }
 }
+
+

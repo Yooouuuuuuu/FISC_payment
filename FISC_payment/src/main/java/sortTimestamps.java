@@ -17,6 +17,7 @@ public class sortTimestamps {
         args[4]: poll from localBalance while repartition
         args[5]: credit topic exist
         args[6]: direct write to successful
+        args[7]: one partition only, skip balancer.
         */
 
         //inputs
@@ -25,6 +26,8 @@ public class sortTimestamps {
         int maxPollRecords = Integer.parseInt(args[2]);
         boolean creditTopicExist = parseBoolean(args[5]);
         boolean toSuccessfulTopic = parseBoolean(args[6]);
+        boolean onePartition = parseBoolean(args[7]);
+
 
         //create a map for serialNumber and timeStamps pair
         Map<String, ArrayList<String>> mapOfTimeStamps = new HashMap<>();
@@ -35,7 +38,7 @@ public class sortTimestamps {
 
         //read from txt files and put into mapOfTimeStamps
         long numOfData = 4L * numOfTX + 2L * numOfPartitions;
-        if (creditTopicExist) {
+        if (onePartition) {
             //read from bixTX.txt and put into mapOfTimeStamps
             List<String> bigTX;
             bigTX = Files.readAllLines(Paths.get("/home/yooouuuuuuu/kafka_projects/TXtimestamps/bigTX.txt"), StandardCharsets.UTF_8);
@@ -43,7 +46,22 @@ public class sortTimestamps {
                 lists[Integer.parseInt(bigTX.get(i))].add(bigTX.get(i + 1));
                 mapOfTimeStamps.put(bigTX.get(i), lists[Integer.parseInt(bigTX.get(i))]);
             }
+            //read from balance.txt and put into mapOfTimeStamps
+            List<String> balance;
+            balance = Files.readAllLines(Paths.get("/home/yooouuuuuuu/kafka_projects/TXtimestamps/balance.txt"), StandardCharsets.UTF_8);
+            for (int i = 0; i < 4 * numOfTX; i += 2) {
+                lists[Integer.parseInt(balance.get(i))].add(balance.get(i + 1));
+                mapOfTimeStamps.put(balance.get(i), lists[Integer.parseInt(balance.get(i))]);
+            }
 
+        }else if (creditTopicExist) {
+            //read from bixTX.txt and put into mapOfTimeStamps
+            List<String> bigTX;
+            bigTX = Files.readAllLines(Paths.get("/home/yooouuuuuuu/kafka_projects/TXtimestamps/bigTX.txt"), StandardCharsets.UTF_8);
+            for (int i = 0; i < 2 * numOfTX + 2 * numOfPartitions; i += 2) {
+                lists[Integer.parseInt(bigTX.get(i))].add(bigTX.get(i + 1));
+                mapOfTimeStamps.put(bigTX.get(i), lists[Integer.parseInt(bigTX.get(i))]);
+            }
             //read from bixTX.txt and put into mapOfTimeStamps
             List<String> successfulTX;
             successfulTX = Files.readAllLines(Paths.get("/home/yooouuuuuuu/kafka_projects/TXtimestamps/successfulTX.txt"), StandardCharsets.UTF_8);
@@ -51,7 +69,6 @@ public class sortTimestamps {
                 lists[Integer.parseInt(successfulTX.get(i))].add(successfulTX.get(i + 1));
                 mapOfTimeStamps.put(successfulTX.get(i), lists[Integer.parseInt(successfulTX.get(i))]);
             }
-
             //read from balance.txt and put into mapOfTimeStamps
             List<String> balance;
             balance = Files.readAllLines(Paths.get("/home/yooouuuuuuu/kafka_projects/TXtimestamps/balance.txt"), StandardCharsets.UTF_8);
@@ -59,6 +76,7 @@ public class sortTimestamps {
                 lists[Integer.parseInt(balance.get(i))].add(balance.get(i + 1));
                 mapOfTimeStamps.put(balance.get(i), lists[Integer.parseInt(balance.get(i))]);
             }
+
         } else {
             //read from bixTX.txt and put into mapOfTimeStamps
             List<String> bigTX;
@@ -67,7 +85,6 @@ public class sortTimestamps {
                 lists[Integer.parseInt(bigTX.get(i))].add(bigTX.get(i + 1));
                 mapOfTimeStamps.put(bigTX.get(i), lists[Integer.parseInt(bigTX.get(i))]);
             }
-
             //read from balance.txt and put into mapOfTimeStamps
             List<String> balance;
             balance = Files.readAllLines(Paths.get("/home/yooouuuuuuu/kafka_projects/TXtimestamps/balance.txt"), StandardCharsets.UTF_8);
@@ -97,15 +114,23 @@ public class sortTimestamps {
             successfulToBalance = Math.abs(successfulToBalance / numOfTX);
             System.out.println("average of time between successfulToBalance is: " + successfulToBalance + " ms");
 
-        } else if (creditTopicExist) {
-            System.out.println(Long.parseLong(mapOfTimeStamps.get(String.valueOf(99999)).get(0)));
-            System.out.println(Long.parseLong(mapOfTimeStamps.get(String.valueOf(99999)).get(1)));
-            System.out.println(Long.parseLong(mapOfTimeStamps.get(String.valueOf(99999)).get(2)));
-            System.out.println(Long.parseLong(mapOfTimeStamps.get(String.valueOf(99999)).get(3)));
-            System.out.println(Long.parseLong(mapOfTimeStamps.get(String.valueOf(99999)).get(4)));
+        } else if (onePartition) {
+            //average of time between bigToBalance
+            for (int i = 0; i < numOfTX; i++) {
+                bigToBalance += Long.parseLong(mapOfTimeStamps.get(String.valueOf(i)).get(0)) -
+                        Math.max((Long.parseLong(mapOfTimeStamps.get(Integer.toString(i)).get(1))), (Long.parseLong(mapOfTimeStamps.get(Integer.toString(i)).get(2))));
+            }
+            bigToBalance = Math.abs(bigToBalance / numOfTX);
+            System.out.println("average of time between bigToSuccessful is: " + bigToBalance + " ms");
 
+            //calculate tps
+            tps = Math.max(Long.parseLong(mapOfTimeStamps.get(String.valueOf(numOfTX - 1)).get(1)), Long.parseLong(mapOfTimeStamps.get(String.valueOf(numOfTX - 1)).get(2))) -
+                    Long.parseLong(mapOfTimeStamps.get(String.valueOf(0)).get(0));
+            float x = ((float) numOfTX / tps) * 1000;
+            tps = (long) x;
+            System.out.println("tps is: " + tps);
 
-
+        }else if (creditTopicExist) {
             //average of time between bigToSuccessful
             for (int i = 0; i < numOfTX; i++) {
                 bigToSuccessful += Long.parseLong(mapOfTimeStamps.get(String.valueOf(i)).get(0)) - Long.parseLong(mapOfTimeStamps.get(String.valueOf(i)).get(1));
@@ -173,18 +198,31 @@ public class sortTimestamps {
 
         //write to csv
         BufferedWriter bw = new BufferedWriter(new FileWriter("/home/yooouuuuuuu/kafka_projects/TXtimestamps/" + maxPollRecords + "records.csv"));//檔案輸出路徑
-        bw.write("TransactionID" + "," + "bifTX" + "," + "successfulTX" + "," + "balance");//寫到新檔案中
 
-        for (int i = 0; i < numOfTX; i += 1) {
-            bw.newLine();//新起一行
-            String[] data = {
-                    String.valueOf(Math.min((Long.parseLong(mapOfTimeStamps.get(Integer.toString(i)).get(0))), (Long.parseLong(mapOfTimeStamps.get(Integer.toString(i)).get(1))))),
-                    String.valueOf(Math.max((Long.parseLong(mapOfTimeStamps.get(Integer.toString(i)).get(0))), (Long.parseLong(mapOfTimeStamps.get(Integer.toString(i)).get(1))))),
-                    String.valueOf(Math.max((Long.parseLong(mapOfTimeStamps.get(Integer.toString(i)).get(2))), (Long.parseLong(mapOfTimeStamps.get(Integer.toString(i)).get(3))))),};
-            //System.out.println(data[0] + data[1] + data[2]);
-            bw.write(i + 1 + "," + data[0] + "," + data[1] + "," + data[2]);//寫到新檔案中
+        if (!onePartition) {
+            bw.write("TransactionID" + "," + "bifTX" + "," + "successfulTX" + "," + "balance");//寫到新檔案中
+            for (int i = 0; i < numOfTX; i += 1) {
+                bw.newLine();//新起一行
+                String[] data = {
+                        String.valueOf(Math.min((Long.parseLong(mapOfTimeStamps.get(Integer.toString(i)).get(0))), (Long.parseLong(mapOfTimeStamps.get(Integer.toString(i)).get(1))))),
+                        String.valueOf(Math.max((Long.parseLong(mapOfTimeStamps.get(Integer.toString(i)).get(0))), (Long.parseLong(mapOfTimeStamps.get(Integer.toString(i)).get(1))))),
+                        String.valueOf(Math.max((Long.parseLong(mapOfTimeStamps.get(Integer.toString(i)).get(2))), (Long.parseLong(mapOfTimeStamps.get(Integer.toString(i)).get(3))))),};
+                //System.out.println(data[0] + data[1] + data[2]);
+                bw.write(i + 1 + "," + data[0] + "," + data[1] + "," + data[2]);//寫到新檔案中
+            }
+            bw.close();
+        } else {
+            bw.write("TransactionID" + "," + "bifTX" + "," + "balance");//寫到新檔案中
+            for (int i = 0; i < numOfTX; i += 1) {
+                bw.newLine();//新起一行
+                String[] data = {
+                        String.valueOf(Long.parseLong(mapOfTimeStamps.get(Integer.toString(i)).get(0))),
+                        String.valueOf(Math.max((Long.parseLong(mapOfTimeStamps.get(Integer.toString(i)).get(1))), (Long.parseLong(mapOfTimeStamps.get(Integer.toString(i)).get(2))))),};
+                //System.out.println(data[0] + data[1] + data[2]);
+                bw.write(i + 1 + "," + data[0] + "," + data[1]);//寫到新檔案中
+            }
+            bw.close();
         }
-        bw.close();
 
         //append to csv
         File file = new File("/home/yooouuuuuuu/kafka_projects/TXtimestamps/timeStamps.csv");
@@ -194,7 +232,9 @@ public class sortTimestamps {
 
         if (toSuccessfulTopic) {
             br.write(maxPollRecords + "," + successfulToBalance);
-        }else {
+        }else if (onePartition) {
+            br.write(maxPollRecords + "," + bigToBalance + "," + tps);
+        } else {
             br.write(maxPollRecords + "," + bigToSuccessful + "," + successfulToBalance + "," + bigToBalance + "," + tps);
         }
         br.close();

@@ -21,11 +21,14 @@ public class consumeTimestamps {
         args[4]: poll from localBalance while repartition
         args[5]: credit topic exist
         args[6]: direct write to successful
+        args[7]: one partition only, skip balancer.
         */
 
         int numOfTX = Integer.parseInt(args[1]); //change input here
         boolean creditTopicExist = parseBoolean(args[5]);
         boolean toSuccessfulTopic = parseBoolean(args[6]);
+        boolean onePartition = parseBoolean(args[7]);
+
 
         System.setProperty(org.slf4j.impl.SimpleLogger.DEFAULT_LOG_LEVEL_KEY, "off"); //"off", "trace", "debug", "info", "warn", "error".
         Properties props = new Properties();
@@ -52,6 +55,17 @@ public class consumeTimestamps {
             consumerFromBal.subscribe(Collections.singletonList(input_topic));
             consumeAndWrite("/home/yooouuuuuuu/kafka_projects/TXtimestamps/balance.txt", consumerFromBal, numOfTX);
             //consumeAndWrite("src/main/java/timestamp/balance.txt", consumerFromBal, numOfTX);
+            consumerFromBal.close();
+
+        } else if (onePartition) {
+            String input_topic = "bigTX";
+            consumerFromBig.subscribe(Collections.singletonList(input_topic));
+            consumeAndWrite("/home/yooouuuuuuu/kafka_projects/TXtimestamps/bigTX.txt", consumerFromBig, numOfTX);
+            consumerFromBig.close();
+
+            input_topic = "balance";
+            consumerFromBal.subscribe(Collections.singletonList(input_topic));
+            consumeAndWrite("/home/yooouuuuuuu/kafka_projects/TXtimestamps/balance.txt", consumerFromBal, numOfTX);
             consumerFromBal.close();
 
         } else if (creditTopicExist) {
