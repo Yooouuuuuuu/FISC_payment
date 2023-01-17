@@ -27,7 +27,8 @@ public class sourceProducer {
 
         int numOfPartitions = Integer.parseInt(args[0]); //3
         long numOfData = Integer.parseInt(args[1]); //10000
-        boolean toSuccessfulTopic = parseBoolean(args[6]);
+        boolean toSuccessfulTopic = false;
+        //boolean toSuccessfulTopic = parseBoolean(args[6]);
         boolean bigTXOnly = true;
 
         System.setProperty(org.slf4j.impl.SimpleLogger.DEFAULT_LOG_LEVEL_KEY, "off"); //"off", "trace", "debug", "info", "warn", "error".

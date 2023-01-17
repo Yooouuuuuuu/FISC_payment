@@ -25,7 +25,7 @@ public class validator2 {
         Properties streamsConfig = new Properties();
         streamsConfig.put(StreamsConfig.APPLICATION_ID_CONFIG, "simple_validator");
         streamsConfig.put(StreamsConfig.BOOTSTRAP_SERVERS_CONFIG, "localhost:9092");
-
+        streamsConfig.put(StreamsConfig.PROCESSING_GUARANTEE_CONFIG, StreamsConfig.EXACTLY_ONCE);
         //create TxSerde
         TxDeserializer<Transaction> TxDeserializer =
                 new TxDeserializer<>();
@@ -34,9 +34,9 @@ public class validator2 {
         Serde<Transaction> TxSerde =
                 Serdes.serdeFrom(TxSerializer, TxDeserializer);
 
-        bankBalance.put("100", 1000000L);
-        bankBalance.put("101", 1000000L);
-        bankBalance.put("102", 1000000L);
+        bankBalance.put("100", 000000L);
+        bankBalance.put("101", 000000L);
+        bankBalance.put("102", 000000L);
 
         //build stream
         StreamsBuilder streamsBuilder = new StreamsBuilder();
@@ -48,21 +48,19 @@ public class validator2 {
                         //.withValueSerde(TxSerde) /* value serde */
         );
 
-
         KStream<String, Long> validatorIn =
                 inputStream.mapValues((key, value) -> bankBalance.get(key) - value.getAmount());
         validatorIn
                 .peek((key, value) -> bankBalance.put(key, value))
                 .to(OutputTopic, Produced.with(Serdes.String(), Serdes.Long()));
 
-        /*
+
         KStream<String, Long> validatorOut =
-                inputStream.map((key, value) -> new KeyValue<>(value.getOutBank(), bankBalance.get(key) + value.getAmount()));
+                inputStream.map((key, value) -> new KeyValue<>(value.getOutBank(), bankBalance.get(value.getOutBank()) + value.getAmount()));
         validatorOut
                 .peek((key, value) -> bankBalance.put(key, value))
-                .peek((key, value) -> System.out.println(key + ", " + value))
+                .peek((key, value) -> System.out.println(bankBalance.get("100") +  ", " + bankBalance.get("101") + ", " + bankBalance.get("102")))
                 .to(OutputTopic, Produced.with(Serdes.String(), Serdes.Long()));
-*/
 
 
         KafkaStreams kafkaStreams =
@@ -71,18 +69,6 @@ public class validator2 {
 
     }
 }
-
-
-[main] WARN org.apache.kafka.streams.internals.metrics.ClientMetrics - Error while loading kafka-streams-version.properties
-        java.lang.NullPointerException: inStream parameter is null
-        at java.base/java.util.Objects.requireNonNull(Objects.java:246)
-        at java.base/java.util.Properties.load(Properties.java:406)
-        at org.apache.kafka.streams.internals.metrics.ClientMetrics.<clinit>(ClientMetrics.java:53)
-        at org.apache.kafka.streams.KafkaStreams.<init>(KafkaStreams.java:894)
-        at org.apache.kafka.streams.KafkaStreams.<init>(KafkaStreams.java:856)
-        at org.apache.kafka.streams.KafkaStreams.<init>(KafkaStreams.java:826)
-        at org.apache.kafka.streams.KafkaStreams.<init>(KafkaStreams.java:738)
-        at validator2.main(validator2.java:69)
 
 
 

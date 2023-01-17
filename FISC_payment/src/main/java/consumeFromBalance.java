@@ -32,7 +32,8 @@ public class consumeFromBalance {
         while (true){
             ConsumerRecords<String, Long> records = consumer_from_tmp.poll(Duration.ofMillis(10));
             for(ConsumerRecord<String, Long> record : records) {
-                logger.info("offset: " + record.offset() + ", Key: " + record.key() + ", Value: " + record.value() + ", Partition: " + record.partition());
+                System.out.println("Key: " + record.key() + ", Value: " + record.value() + ", Partition: " + record.partition());
+                //logger.info("offset: " + record.offset() + ", Key: " + record.key() + ", Value: " + record.value() + ", Partition: " + record.partition());
             }
         }
     }
