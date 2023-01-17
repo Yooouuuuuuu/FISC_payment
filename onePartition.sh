@@ -1,0 +1,35 @@
+# args[0]: # of partitions
+# args[1]: # of transactions
+# args[2]: "max.poll.records"
+# args[3]: batch processing
+# args[4]: poll from localBalance while repartition
+# args[5]: credit topic exist
+# args[6]: direct write to successful
+
+i=3000
+
+while [ $i -le 3000 ]; do
+    echo Number: $i
+
+    echo "=== Initialize kafka topics === "
+    # wait some time for deletion
+/usr/lib/jvm/java-11-amazon-corretto/bin/java -javaagent:/home/yooouuuuuuu/idea-IC-221.5921.22/lib/idea_rt.jar=42175:/home/yooouuuuuuu/idea-IC-221.5921.22/bin -Dfile.encoding=UTF-8 -classpath /home/yooouuuuuuu/IdeaProjects/kafka/FISC_payment/target/classes:/home/yooouuuuuuu/.m2/repository/org/apache/kafka/kafka-clients/3.2.0/kafka-clients-3.2.0.jar:/home/yooouuuuuuu/.m2/repository/com/github/luben/zstd-jni/1.5.2-1/zstd-jni-1.5.2-1.jar:/home/yooouuuuuuu/.m2/repository/org/lz4/lz4-java/1.8.0/lz4-java-1.8.0.jar:/home/yooouuuuuuu/.m2/repository/org/xerial/snappy/snappy-java/1.1.8.4/snappy-java-1.1.8.4.jar:/home/yooouuuuuuu/.m2/repository/org/slf4j/slf4j-api/1.7.32/slf4j-api-1.7.32.jar:/home/yooouuuuuuu/.m2/repository/org/slf4j/slf4j-simple/1.7.32/slf4j-simple-1.7.32.jar:/home/yooouuuuuuu/.m2/repository/com/github/javafaker/javafaker/1.0.2/javafaker-1.0.2.jar:/home/yooouuuuuuu/.m2/repository/org/apache/commons/commons-lang3/3.5/commons-lang3-3.5.jar:/home/yooouuuuuuu/.m2/repository/org/yaml/snakeyaml/1.23/snakeyaml-1.23-android.jar:/home/yooouuuuuuu/.m2/repository/com/github/mifmif/generex/1.0.2/generex-1.0.2.jar:/home/yooouuuuuuu/.m2/repository/dk/brics/automaton/automaton/1.11-8/automaton-1.11-8.jar initialize 1 100000 $i true true true false
+
+    echo "=== open validators & balancers === "
+/usr/lib/jvm/java-11-amazon-corretto/bin/java -javaagent:/home/yooouuuuuuu/idea-IC-221.5921.22/lib/idea_rt.jar=39417:/home/yooouuuuuuu/idea-IC-221.5921.22/bin -Dfile.encoding=UTF-8 -classpath /home/yooouuuuuuu/IdeaProjects/kafka/FISC_payment/target/classes:/home/yooouuuuuuu/.m2/repository/org/apache/kafka/kafka-clients/3.2.0/kafka-clients-3.2.0.jar:/home/yooouuuuuuu/.m2/repository/com/github/luben/zstd-jni/1.5.2-1/zstd-jni-1.5.2-1.jar:/home/yooouuuuuuu/.m2/repository/org/lz4/lz4-java/1.8.0/lz4-java-1.8.0.jar:/home/yooouuuuuuu/.m2/repository/org/xerial/snappy/snappy-java/1.1.8.4/snappy-java-1.1.8.4.jar:/home/yooouuuuuuu/.m2/repository/org/slf4j/slf4j-api/1.7.32/slf4j-api-1.7.32.jar:/home/yooouuuuuuu/.m2/repository/org/slf4j/slf4j-simple/1.7.32/slf4j-simple-1.7.32.jar:/home/yooouuuuuuu/.m2/repository/com/github/javafaker/javafaker/1.0.2/javafaker-1.0.2.jar:/home/yooouuuuuuu/.m2/repository/org/apache/commons/commons-lang3/3.5/commons-lang3-3.5.jar:/home/yooouuuuuuu/.m2/repository/org/yaml/snakeyaml/1.23/snakeyaml-1.23-android.jar:/home/yooouuuuuuu/.m2/repository/com/github/mifmif/generex/1.0.2/generex-1.0.2.jar:/home/yooouuuuuuu/.m2/repository/dk/brics/automaton/automaton/1.11-8/automaton-1.11-8.jar validateToBalance 1 100000 $i true true true false&
+
+    sleep 30
+    # wait some time for rebalance
+
+    echo "=== input data === "
+/usr/lib/jvm/java-11-amazon-corretto/bin/java -javaagent:/home/yooouuuuuuu/idea-IC-221.5921.22/lib/idea_rt.jar=34463:/home/yooouuuuuuu/idea-IC-221.5921.22/bin -Dfile.encoding=UTF-8 -classpath /home/yooouuuuuuu/IdeaProjects/kafka/FISC_payment/target/classes:/home/yooouuuuuuu/.m2/repository/org/apache/kafka/kafka-clients/3.2.0/kafka-clients-3.2.0.jar:/home/yooouuuuuuu/.m2/repository/com/github/luben/zstd-jni/1.5.2-1/zstd-jni-1.5.2-1.jar:/home/yooouuuuuuu/.m2/repository/org/lz4/lz4-java/1.8.0/lz4-java-1.8.0.jar:/home/yooouuuuuuu/.m2/repository/org/xerial/snappy/snappy-java/1.1.8.4/snappy-java-1.1.8.4.jar:/home/yooouuuuuuu/.m2/repository/org/slf4j/slf4j-api/1.7.32/slf4j-api-1.7.32.jar:/home/yooouuuuuuu/.m2/repository/org/slf4j/slf4j-simple/1.7.32/slf4j-simple-1.7.32.jar:/home/yooouuuuuuu/.m2/repository/com/github/javafaker/javafaker/1.0.2/javafaker-1.0.2.jar:/home/yooouuuuuuu/.m2/repository/org/apache/commons/commons-lang3/3.5/commons-lang3-3.5.jar:/home/yooouuuuuuu/.m2/repository/org/yaml/snakeyaml/1.23/snakeyaml-1.23-android.jar:/home/yooouuuuuuu/.m2/repository/com/github/mifmif/generex/1.0.2/generex-1.0.2.jar:/home/yooouuuuuuu/.m2/repository/dk/brics/automaton/automaton/1.11-8/automaton-1.11-8.jar sourceProducer 1 100000 $i true true true false&
+    sleep 150
+    pkill -f 'automaton-1.11-8.jar'
+
+    echo "=== consume, sort and write to csv === "
+    /usr/lib/jvm/java-11-amazon-corretto/bin/java -javaagent:/home/yooouuuuuuu/idea-IC-221.5921.22/lib/idea_rt.jar=37305:/home/yooouuuuuuu/idea-IC-221.5921.22/bin -Dfile.encoding=UTF-8 -classpath /home/yooouuuuuuu/IdeaProjects/kafka/FISC_payment/target/classes:/home/yooouuuuuuu/.m2/repository/org/apache/kafka/kafka-clients/3.2.0/kafka-clients-3.2.0.jar:/home/yooouuuuuuu/.m2/repository/com/github/luben/zstd-jni/1.5.2-1/zstd-jni-1.5.2-1.jar:/home/yooouuuuuuu/.m2/repository/org/lz4/lz4-java/1.8.0/lz4-java-1.8.0.jar:/home/yooouuuuuuu/.m2/repository/org/xerial/snappy/snappy-java/1.1.8.4/snappy-java-1.1.8.4.jar:/home/yooouuuuuuu/.m2/repository/org/slf4j/slf4j-api/1.7.32/slf4j-api-1.7.32.jar:/home/yooouuuuuuu/.m2/repository/org/slf4j/slf4j-simple/1.7.32/slf4j-simple-1.7.32.jar:/home/yooouuuuuuu/.m2/repository/com/github/javafaker/javafaker/1.0.2/javafaker-1.0.2.jar:/home/yooouuuuuuu/.m2/repository/org/apache/commons/commons-lang3/3.5/commons-lang3-3.5.jar:/home/yooouuuuuuu/.m2/repository/org/yaml/snakeyaml/1.23/snakeyaml-1.23-android.jar:/home/yooouuuuuuu/.m2/repository/com/github/mifmif/generex/1.0.2/generex-1.0.2.jar:/home/yooouuuuuuu/.m2/repository/dk/brics/automaton/automaton/1.11-8/automaton-1.11-8.jar consumeTimestamps 1 100000 $i true true true false true
+
+/usr/lib/jvm/java-11-amazon-corretto/bin/java -javaagent:/home/yooouuuuuuu/idea-IC-221.5921.22/lib/idea_rt.jar=39227:/home/yooouuuuuuu/idea-IC-221.5921.22/bin -Dfile.encoding=UTF-8 -classpath /home/yooouuuuuuu/IdeaProjects/kafka/FISC_payment/target/classes:/home/yooouuuuuuu/.m2/repository/org/apache/kafka/kafka-clients/3.2.0/kafka-clients-3.2.0.jar:/home/yooouuuuuuu/.m2/repository/com/github/luben/zstd-jni/1.5.2-1/zstd-jni-1.5.2-1.jar:/home/yooouuuuuuu/.m2/repository/org/lz4/lz4-java/1.8.0/lz4-java-1.8.0.jar:/home/yooouuuuuuu/.m2/repository/org/xerial/snappy/snappy-java/1.1.8.4/snappy-java-1.1.8.4.jar:/home/yooouuuuuuu/.m2/repository/org/slf4j/slf4j-api/1.7.32/slf4j-api-1.7.32.jar:/home/yooouuuuuuu/.m2/repository/org/slf4j/slf4j-simple/1.7.32/slf4j-simple-1.7.32.jar:/home/yooouuuuuuu/.m2/repository/com/github/javafaker/javafaker/1.0.2/javafaker-1.0.2.jar:/home/yooouuuuuuu/.m2/repository/org/apache/commons/commons-lang3/3.5/commons-lang3-3.5.jar:/home/yooouuuuuuu/.m2/repository/org/yaml/snakeyaml/1.23/snakeyaml-1.23-android.jar:/home/yooouuuuuuu/.m2/repository/com/github/mifmif/generex/1.0.2/generex-1.0.2.jar:/home/yooouuuuuuu/.m2/repository/dk/brics/automaton/automaton/1.11-8/automaton-1.11-8.jar sortTimestamps 1 100000 $i true true true false true
+    let "i+=250" 
+done
+
