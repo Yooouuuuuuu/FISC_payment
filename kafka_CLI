@@ -21,5 +21,6 @@ wc -l < bigTX.txt
 
 kafka-console-consumer.sh --bootstrap-server localhost:9092 --topic bigTX --from-beginning
 
+TXtimestamps
 
 
