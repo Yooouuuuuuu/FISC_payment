@@ -49,52 +49,52 @@ public class consumeTimestamps {
         if (toSuccessfulTopic) {
             String input_topic = "successfulTX";
             consumerFromBig.subscribe(Collections.singletonList(input_topic));
-            consumeAndWrite("/home/user/liang_you/experiment/TXtimestamps/bigTX.txt", consumerFromBig, numOfTX);
+            consumeAndWrite("/home/g110753209/TXtimestamps/bigTX.txt", consumerFromBig, numOfTX);
             //consumeAndWrite("src/main/java/timestamp/bigTX.txt", consumerFromBig, numOfTX);
             consumerFromBig.close();
 
             input_topic = "balance";
             consumerFromBal.subscribe(Collections.singletonList(input_topic));
-            consumeAndWrite("/home/user/liang_you/experiment/TXtimestamps/balance.txt", consumerFromBal, numOfTX);
+            consumeAndWrite("/home/g110753209/TXtimestamps/balance.txt", consumerFromBal, numOfTX);
             //consumeAndWrite("src/main/java/timestamp/balance.txt", consumerFromBal, numOfTX);
             consumerFromBal.close();
 
         } else if (onePartition) {
             String input_topic = "bigTX";
             consumerFromBig.subscribe(Collections.singletonList(input_topic));
-            consumeAndWrite("/home/user/liang_you/experiment/TXtimestamps/bigTX.txt", consumerFromBig, numOfTX);
+            consumeAndWrite("/home/g110753209/TXtimestamps/bigTX.txt", consumerFromBig, numOfTX);
             consumerFromBig.close();
 
             input_topic = "balance";
             consumerFromBal.subscribe(Collections.singletonList(input_topic));
-            consumeAndWrite("/home/user/liang_you/experiment/TXtimestamps/balance.txt", consumerFromBal, numOfTX);
+            consumeAndWrite("/home/g110753209/TXtimestamps/balance.txt", consumerFromBal, numOfTX);
             consumerFromBal.close();
 
         } else if (creditTopicExist) {
             String input_topic = "bigTX";
             consumerFromBig.subscribe(Collections.singletonList(input_topic));
-            consumeAndWrite("/home/user/liang_you/experiment/TXtimestamps/bigTX.txt", consumerFromBig, numOfTX);
+            consumeAndWrite("/home/g110753209/TXtimestamps/bigTX.txt", consumerFromBig, numOfTX);
             consumerFromBig.close();
 
             input_topic = "successfulTX";
             consumerFromSuc.subscribe(Collections.singletonList(input_topic));
-            consumeAndWrite("/home/user/liang_you/experiment/TXtimestamps/successfulTX.txt", consumerFromSuc, numOfTX);
+            consumeAndWrite("/home/g110753209/TXtimestamps/successfulTX.txt", consumerFromSuc, numOfTX);
             consumerFromSuc.close();
 
             input_topic = "balance";
             consumerFromBal.subscribe(Collections.singletonList(input_topic));
-            consumeAndWrite("/home/user/liang_you/experiment/TXtimestamps/balance.txt", consumerFromBal, numOfTX);
+            consumeAndWrite("/home/g110753209/TXtimestamps/balance.txt", consumerFromBal, numOfTX);
             consumerFromBal.close();
 
         } else {
             String input_topic = "bigTX";
             consumerFromBig.subscribe(Collections.singletonList(input_topic));
-            consumeAndWrite("/home/user/liang_you/experiment/TXtimestamps/bigTX.txt", consumerFromBig, numOfTX);
+            consumeAndWrite("/home/g110753209/TXtimestamps/bigTX.txt", consumerFromBig, numOfTX);
             consumerFromBig.close();
 
             input_topic = "balance";
             consumerFromBal.subscribe(Collections.singletonList(input_topic));
-            consumeAndWrite("/home/user/liang_you/experiment/TXtimestamps/balance.txt", consumerFromBal, numOfTX);
+            consumeAndWrite("/home/g110753209/TXtimestamps/balance.txt", consumerFromBal, numOfTX);
             consumerFromBal.close();
         }
     }
