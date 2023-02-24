@@ -31,6 +31,7 @@ public class balancer {
         args[8]: bootstrap.servers
         */
 
+        int numOfTX = Integer.parseInt(args[1]);
         System.setProperty(org.slf4j.impl.SimpleLogger.DEFAULT_LOG_LEVEL_KEY, "off"); //"off", "trace", "debug", "info", "warn", "error".
         InitConsumer(Integer.parseInt(args[2]), args[8]);
         InitProducer(args[8]);
@@ -47,9 +48,9 @@ public class balancer {
                     logger.info("InBank: " + record.value().getInBank() + " ,OutBank: " + record.value().getOutBank() + " ,Value: " + record.value().getAmount() + " ,Offset:" + record.offset());
                     if (record.value().getCategory() != 3) {
                         PollFromBalance(record.value());
-                        Process(record.value());
+                        Process(record.value(), numOfTX);
                     }else if (record.value().getCategory() == 3) {
-                        Process(record.value());
+                        Process(record.value(), numOfTX);
                         System.out.println("Bank " + record.value().getInBank() + " has been initialized to balance " + bankBalance.get(record.value().getInBank()) + ". (balancer)");
                     }
                 }
@@ -142,8 +143,8 @@ public class balancer {
         return new Transaction(tx.getInBank(), "000", bankBalance.get(tx.getInBank()), tx.getSerialNumber(), -1, -1, -1);
     }
 
-    private static void Process(Transaction tx) throws ExecutionException, InterruptedException {
-        System.out.println(tx.getSerialNumber());
+    private static void Process(Transaction tx, int numOfTX) throws ExecutionException, InterruptedException {
+        //System.out.println(tx.getSerialNumber());
         if (tx.getCategory() == 3) {
             bankBalance.compute(tx.getInBank(), (key, value) -> tx.getAmount());
             producer.send(new ProducerRecord<String, Transaction>("balance", tx.getInBankPartition(), tx.getInBank(), Record(tx)));
@@ -153,6 +154,9 @@ public class balancer {
         }else if (tx.getCategory() == 2){
             bankBalance.compute(tx.getInBank(), (key, value) -> value + tx.getAmount());
             producer.send(new ProducerRecord<String, Transaction>("balance", tx.getInBankPartition(), tx.getInBank(), Record(tx)));
+        }
+        if (tx.getSerialNumber() == numOfTX) {
+            System.out.println("Test finished.");
         }
     }
 

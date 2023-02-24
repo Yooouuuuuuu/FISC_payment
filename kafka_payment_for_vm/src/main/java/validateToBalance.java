@@ -36,6 +36,7 @@ public class validateToBalance {
         args[8]: bootstrap.servers
         */
 
+        int numOfTX = Integer.parseInt(args[1]);
         boolean batchProcessing = parseBoolean(args[3]);
         boolean notPollLocal = parseBoolean(args[4]);
         boolean creditTopicExist = parseBoolean(args[5]);
@@ -53,7 +54,7 @@ public class validateToBalance {
                 producer.beginTransaction();        //start atomically transaction
                 try {
                     for (ConsumerRecord<String, Transaction> record : records) {
-                        System.out.println(record.value().getSerialNumber());
+                        //System.out.println(record.value().getSerialNumber());
                         logger.info("InBank: " + record.value().getInBank() + " ,OutBank: " + record.value().getOutBank() + " ,Value: " + record.value().getAmount() + " ,Offset:" + record.offset());
                         if (record.value().getCategory() == 0) {
                             ProcessBig(record.value(), notPollLocal, creditTopicExist);
@@ -61,6 +62,9 @@ public class validateToBalance {
                             ProcessAggregated(record.value(), notPollLocal, creditTopicExist);
                         } else if (record.value().getCategory() == 3) {
                             InitBank(record.value());
+                        }
+                        if (record.value().getSerialNumber() == numOfTX) {
+                            System.out.println("Test finished.");
                         }
                     }
                     consumerFromBig.commitSync();
